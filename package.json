@@ -15,6 +15,9 @@
     "auto-complete-extension": "file:",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "formidable": "^3.5.1",
+    "fs-extra": "^11.2.0",
+    "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.4"
   }
 }

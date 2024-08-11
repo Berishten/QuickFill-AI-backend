@@ -1,5 +1,11 @@
 const express = require("express");
 const app = express();
+const multer = require("multer");
+const fs = require("fs-extra");
+const path = require("path");
+var formidable = require("formidable");
+
+const { GoogleAIFileManager } = require("@google/generative-ai/server");
 const {
 	GoogleGenerativeAI,
 	FunctionDeclarationSchemaType,
@@ -38,7 +44,6 @@ Your task is to respond to each question using the format specified in the 'tipo
 - All responses must be in Spanish.
 `;
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-
 app.use(express.json());
 
 app.post("/responder", async (req, res) => {
@@ -46,7 +51,7 @@ app.post("/responder", async (req, res) => {
 
 	// console.log("BODY:", req.body.form);
 	const formQuestions = await analyzeForm(req.body.form);
-	console.log(formQuestions);
+	// console.log(formQuestions);
 
 	let answers = await answerQuestions(formQuestions, context);
 	answers = JSON.parse(answers.response.text());
@@ -54,8 +59,24 @@ app.post("/responder", async (req, res) => {
 	res.json(answers);
 });
 
+// Configuración de multer para almacenar archivos
+const storage = multer.diskStorage({
+	destination: (req, file, cb) => {
+		cb(null, "uploads/"); // Carpeta donde se guardarán los archivos
+	},
+	filename: (req, file, cb) => {
+		cb(null, Date.now() + path.extname(file.originalname)); // Nombre del archivo con timestamp
+	},
+});
+
+const upload = multer({ storage: storage });
+app.post("/upload", upload.single("file"), async (req, res) => {
+	res.json({ message: 'File uploaded successfully', filename: req.file.filename });
+});
+
 async function answerQuestions(formQuestions, context) {
-	const prePrompt = "You must answer everything under the following context: " + context + "\n";
+	const prePrompt =
+		"You must answer everything under the following context: " + context + "\n";
 	const prompt = prePrompt + ANSWER_INSTRUCTIONS;
 
 	const answerModel = genAI.getGenerativeModel({
