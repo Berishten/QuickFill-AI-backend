@@ -18,8 +18,8 @@ const {
 
 require("dotenv").config();
 const GEMINI_MODEL = "gemini-1.5-flash";
-const ANALYZE_INSTRUCTIONS = `
-You are an expert in analyzing web forms that contain ('title' - 'input_type') pairs.
+const ANALYZE_INSTRUCTIONS = 
+`You are an expert in analyzing web forms that contain ('title' - 'input_type') pairs.
 You will be provided with a form, and your task is to identify and list all the ('title' - 'input_type') pairs present.
 
 1. Identification:
@@ -38,16 +38,16 @@ You will be provided with a form, and your task is to identify and list all the 
 5. Restrictions:
    - You must provide the 'max_length' property for all input types if there is a character limit.
 `;
-const ANSWER_INSTRUCTIONS = `
-You will be provided with a JSON file containing objects with questions in the 'titulo' property. 
-Your task is to respond to each question using the format specified in the 'tipo_input' property.
-- If the 'tipo_input' is 'selector', choose one of the values from the 'values' property in the same object.
+const ANSWER_INSTRUCTIONS = 
+`You will be provided with a JSON file containing an array of objects with 'questions' in the 'title' property. 
+Your task is to respond to each question using the format specified in the 'input_type' property.
+- If the 'input_type' is 'selector', choose one of the values from the 'values' property in the same object.
 - Ensure that you respond to all questions.
 - You must provide responses in the same order as the questions.
 - You must provide a response limited to the 'max_length' property if it exists.
 - Don't be redundant in your responses relative to the question.
-- All responses must be in Spanish.
-`;
+- All responses must be in Spanish.`
+;
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_API_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
@@ -55,15 +55,22 @@ app.use(express.json());
 
 app.post("/responder", async (req, res) => {
 	const context = req.body.context;
+	const fileUri = req.body.fileUri;
 
 	// console.log("BODY:", req.body.form);
 	const formQuestions = await analyzeForm(req.body.form);
-	// console.log(formQuestions);
+	// // console.log(formQuestions);
 
-	let answers = await answerQuestions(formQuestions, context);
+	let answers = await answerQuestions(formQuestions, context, fileUri);
+
+	if (!answers) {
+		res.status(500).json({ message: "Error answering questions" });
+		return;
+	}
+
 	answers = JSON.parse(answers.response.text());
-
-	res.json(answers);
+	console.log("Respuestas:", answers);
+	res.status(200).json(answers);
 });
 
 // Configuración de multer para almacenar archivos
@@ -72,12 +79,17 @@ const storage = multer.diskStorage({
 		cb(null, "uploads/"); // Carpeta donde se guardarán los archivos
 	},
 	filename: (req, file, cb) => {
-		cb(null, Date.now() + path.extname(file.originalname)); // Nombre del archivo con timestamp
+		cb(null, file.originalname); // Nombre del archivo con timestamp
 	},
 });
 
 const upload = multer({ storage: storage });
 app.post("/upload", upload.single("file"), async (req, res) => {
+	if (!req.file) {
+		res.status(400).json({ message: "No file uploaded" });
+		return;
+	}
+
 	let fileInfo = {
 		filename: req.file.filename,
 		path: req.file.path,
@@ -103,7 +115,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
 	res.json({
 		message: "Uploaded successfully",
-		remote: uploadResponse.file.uri,
+		file: { name: fileInfo.filename, uri: uploadResponse.file.uri },
 	});
 });
 
@@ -119,7 +131,7 @@ app.delete("/delete/:fileid", async (req, res) => {
 
 app.get("/list", async (req, res) => {
 	let files = await listFiles(fileManager);
-	if (!files) {
+	if (!files || !files.files) {
 		res.status(404).json({ message: "Files not found" });
 		return;
 	}
@@ -137,14 +149,13 @@ app.get("/file/:fileId", async (req, res) => {
 	res.json(file);
 });
 
-async function answerQuestions(formQuestions, context) {
-	const prePrompt =
-		"You must answer everything under the following context: " + context + "\n";
-	const prompt = prePrompt + ANSWER_INSTRUCTIONS;
+async function answerQuestions(formQuestions, context, fileUri) {
+	const prePrompt = context + ".\n";
+	// const systemInstructions = prePrompt + ANSWER_INSTRUCTIONS;
 
 	const answerModel = genAI.getGenerativeModel({
 		model: GEMINI_MODEL,
-		systemInstruction: prompt,
+		// systemInstruction: systemInstructions,
 		generationConfig: {
 			responseMimeType: "application/json",
 			responseSchema: {
@@ -155,8 +166,55 @@ async function answerQuestions(formQuestions, context) {
 			},
 		},
 	});
+
+	let prompt = [];
+	if (fileUri && fileUri.trim() != "") {
+		prompt.push({ text: "You will base your answers on the following file" });
+		prompt.push({
+			fileData: {
+				mimeType: "application/pdf",
+				fileUri: fileUri,
+			},
+		});
+	}
+
+	prompt.push({
+		text: 
+`Recibirás un JSON que contiene un arreglo de objetos con la siguiente estructura:
+[
+	{"title": "titulo1", "input_type": "text", "max_length": 100},
+	{"title": "titulo2", "input_type": "number"},
+	{"title": "titulo3", "input_type": "select", "values": ["valor1", "valor2", "valor3", "valor4"]},
+	{"title": "titulo4", "input_type": "text"}
+]
+### Tarea:
+1. Para cada objeto en el arreglo:
+	- Responde al contenido del campo "title" de acuerdo con las siguientes restricciones:
+		- "input_type": Responde utilizando el tipo de dato especificado.
+		- Si el "input_type" es "text", tu respuesta debe ser un texto con una longitud máxima definida por la propiedad "max_length" (si está presente).
+		- Si el "input_type" es "number", tu respuesta debe ser un número.
+		- Si el "input_type" es "select", tu respuesta debe ser uno de los valores especificados en la propiedad "values".
+		- "max_length": Si la propiedad "max_length" está presente y el "input_type" es "text", asegúrate de que la respuesta no exceda esta longitud.
+2. Ejemplo de Respuesta:
+[
+	"respuesta dentro del límite de 100 caracteres",
+	42,
+	"valor2",
+	"otro texto"
+]
+Asegúrate de que cada respuesta cumpla estrictamente con los requisitos definidos por el input_type y, cuando aplique, por max_length o values.`,
+	});
+
+	prompt.push({ text: formQuestions });
 	console.log(prompt);
-	return await answerModel.generateContent(formQuestions);
+
+	try {
+		const result = await answerModel.generateContent(prompt);
+		return result;
+	} catch (error) {
+		console.log("Error:", error);
+		return false;
+	}
 }
 
 async function analyzeForm(form) {
