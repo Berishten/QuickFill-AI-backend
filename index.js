@@ -38,16 +38,6 @@ You will be provided with a form, and your task is to identify and list all the 
 5. Restrictions:
    - You must provide the 'max_length' property for all input types if there is a character limit.
 `;
-const ANSWER_INSTRUCTIONS = 
-`You will be provided with a JSON file containing an array of objects with 'questions' in the 'title' property. 
-Your task is to respond to each question using the format specified in the 'input_type' property.
-- If the 'input_type' is 'selector', choose one of the values from the 'values' property in the same object.
-- Ensure that you respond to all questions.
-- You must provide responses in the same order as the questions.
-- You must provide a response limited to the 'max_length' property if it exists.
-- Don't be redundant in your responses relative to the question.
-- All responses must be in Spanish.`
-;
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_API_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
@@ -117,6 +107,20 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 		message: "Uploaded successfully",
 		file: { name: fileInfo.filename, uri: uploadResponse.file.uri },
 	});
+});
+
+app.delete("/deleteAll", async (req, res) => {
+	const files = await listFiles(fileManager);
+	if (!files || !files.files) {
+		res.status(404).json({ message: "Files not found" });
+		return;
+	}
+
+	for (let file of files.files) {
+		await deleteFile(file.name, fileManager);
+	}
+
+	res.json({ message: "Deleted all files successfully" });
 });
 
 app.delete("/delete/:fileid", async (req, res) => {
