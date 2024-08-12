@@ -56,14 +56,14 @@ app.use(express.json());
 app.post("/responder", async (req, res) => {
 	const context = req.body.context;
 
-	console.log("BODY:", req.body.form);
-	const formQuestions = await analyzeForm(req.body.form);
-	// console.log(formQuestions);
+	// console.log("BODY:", req.body.form);
+	// const formQuestions = await analyzeForm(req.body.form);
+	// // console.log(formQuestions);
 
-	let answers = await answerQuestions(formQuestions, context);
-	answers = JSON.parse(answers.response.text());
+	// let answers = await answerQuestions(formQuestions, context);
+	// answers = JSON.parse(answers.response.text());
 
-	res.json(answers);
+	// res.json(answers);
 });
 
 // Configuración de multer para almacenar archivos
