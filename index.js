@@ -72,10 +72,7 @@ app.post("/responder", async (req, res) => {
 	const context = req.body.context;
 	const fileUri = req.body.fileUri;
 
-	// console.log("BODY:", req.body.form);
 	const formQuestions = await analyzeForm(req.body.form);
-	console.log("FORMULARIO:" , formQuestions);
-
 	let answers = await answerQuestions(formQuestions, context, fileUri);
 
 	if (!answers) {
@@ -91,10 +88,10 @@ app.post("/responder", async (req, res) => {
 // Configuración de multer para almacenar archivos
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
-		cb(null, "uploads/"); // Carpeta donde se guardarán los archivos
+		cb(null, "uploads/");
 	},
 	filename: (req, file, cb) => {
-		cb(null, file.originalname); // Nombre del archivo con timestamp
+		cb(null, file.originalname);
 	},
 });
 
@@ -132,13 +129,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 		message: "Uploaded successfully",
 		file: { name: fileInfo.filename, uri: uploadResponse.file.uri },
 	});
-
-	// res.json({
-	// 	file: {
-	// 		name: "CV_GEN PABLO ESCOBAR VEGA .pdf",
-	// 		uri: "https://generativelanguage.googleapis.com/v1beta/files/mf80ou002742",
-	// 	},
-	// });
 });
 
 app.delete("/deleteAll", async (req, res) => {
@@ -215,32 +205,6 @@ async function answerQuestions(formQuestions, context, fileUri) {
 	}
 	
 	prompt.push({ text: prePrompt });
-// 	prompt.push({
-// 		text: `Recibirás un JSON que contiene un arreglo de objetos con la siguiente estructura:
-// [
-// 	{"title": "titulo1", "input_type": "text", "max_length": 100},
-// 	{"title": "titulo2", "input_type": "number"},
-// 	{"title": "titulo3", "input_type": "select", "values": ["valor1", "valor2", "valor3", "valor4"]},
-// 	{"title": "titulo4", "input_type": "text"}
-// ]
-// ### Tarea:
-// 1. Para cada objeto en el arreglo:
-// 	- Responde al contenido del campo "title" de acuerdo con las siguientes restricciones:
-// 		- "input_type": Responde utilizando el tipo de dato especificado.
-// 		- Si el "input_type" es "text", tu respuesta debe ser un texto con una longitud máxima definida por la propiedad "max_length" (si está presente).
-// 		- Si el "input_type" es "number", tu respuesta debe ser un número.
-// 		- Si el "input_type" es "select", tu respuesta debe ser uno de los valores especificados en la propiedad "values".
-// 		- "max_length": Si la propiedad "max_length" está presente y el "input_type" es "text", asegúrate de que la respuesta no exceda esta longitud.
-// 2. Ejemplo de Respuesta:
-// [
-// 	"respuesta dentro del límite de 100 caracteres",
-// 	42,
-// 	"valor2",
-// 	"otro texto"
-// ]
-// Asegúrate de que cada respuesta cumpla estrictamente con los requisitos definidos por el input_type y, cuando aplique, por max_length o values.`,
-// 	});
-
 	prompt.push({ text: formQuestions });
 	console.log(prompt);
 
