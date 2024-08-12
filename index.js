@@ -72,10 +72,7 @@ app.post("/responder", async (req, res) => {
 	const context = req.body.context;
 	const fileUri = req.body.fileUri;
 
-	// console.log("BODY:", req.body.form);
 	const formQuestions = await analyzeForm(req.body.form);
-	console.log("FORMULARIO:" , formQuestions);
-
 	let answers = await answerQuestions(formQuestions, context, fileUri);
 
 	if (!answers) {
@@ -91,10 +88,10 @@ app.post("/responder", async (req, res) => {
 // Configuración de multer para almacenar archivos
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
-		cb(null, "uploads/"); // Carpeta donde se guardarán los archivos
+		cb(null, "uploads/");
 	},
 	filename: (req, file, cb) => {
-		cb(null, file.originalname); // Nombre del archivo con timestamp
+		cb(null, file.originalname);
 	},
 });
 
@@ -132,13 +129,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 		message: "Uploaded successfully",
 		file: { name: fileInfo.filename, uri: uploadResponse.file.uri },
 	});
-
-	// res.json({
-	// 	file: {
-	// 		name: "CV_GEN PABLO ESCOBAR VEGA .pdf",
-	// 		uri: "https://generativelanguage.googleapis.com/v1beta/files/mf80ou002742",
-	// 	},
-	// });
 });
 
 app.delete("/deleteAll", async (req, res) => {
