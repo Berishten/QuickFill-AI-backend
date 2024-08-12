@@ -18,8 +18,8 @@ const {
 
 require("dotenv").config();
 const GEMINI_MODEL = "gemini-1.5-flash";
-const ANALYZE_INSTRUCTIONS = 
-`You are an expert in analyzing web forms that contain ('title' - 'input_type') pairs.
+const ANALYZE_INSTRUCTIONS = `
+You are an expert in analyzing web forms that contain ('title' - 'input_type') pairs.
 You will be provided with a form, and your task is to identify and list all the ('title' - 'input_type') pairs present.
 
 1. Identification:
@@ -49,7 +49,7 @@ app.post("/responder", async (req, res) => {
 
 	// console.log("BODY:", req.body.form);
 	const formQuestions = await analyzeForm(req.body.form);
-	// // console.log(formQuestions);
+	console.log("FORMULARIO:" , formQuestions);
 
 	let answers = await answerQuestions(formQuestions, context, fileUri);
 
@@ -107,6 +107,13 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 		message: "Uploaded successfully",
 		file: { name: fileInfo.filename, uri: uploadResponse.file.uri },
 	});
+
+	// res.json({
+	// 	file: {
+	// 		name: "CV_GEN PABLO ESCOBAR VEGA .pdf",
+	// 		uri: "https://generativelanguage.googleapis.com/v1beta/files/mf80ou002742",
+	// 	},
+	// });
 });
 
 app.delete("/deleteAll", async (req, res) => {
@@ -154,12 +161,10 @@ app.get("/file/:fileId", async (req, res) => {
 });
 
 async function answerQuestions(formQuestions, context, fileUri) {
-	const prePrompt = context + ".\n";
-	// const systemInstructions = prePrompt + ANSWER_INSTRUCTIONS;
+	const prePrompt = context;
 
 	const answerModel = genAI.getGenerativeModel({
 		model: GEMINI_MODEL,
-		// systemInstruction: systemInstructions,
 		generationConfig: {
 			responseMimeType: "application/json",
 			responseSchema: {
@@ -173,6 +178,7 @@ async function answerQuestions(formQuestions, context, fileUri) {
 
 	let prompt = [];
 	if (fileUri && fileUri.trim() != "") {
+		console.log("Utilizando contexto de archivo");
 		prompt.push({ text: "You will base your answers on the following file" });
 		prompt.push({
 			fileData: {
@@ -181,10 +187,10 @@ async function answerQuestions(formQuestions, context, fileUri) {
 			},
 		});
 	}
-
+	
+	prompt.push({ text: prePrompt });
 	prompt.push({
-		text: 
-`Recibirás un JSON que contiene un arreglo de objetos con la siguiente estructura:
+		text: `Recibirás un JSON que contiene un arreglo de objetos con la siguiente estructura:
 [
 	{"title": "titulo1", "input_type": "text", "max_length": 100},
 	{"title": "titulo2", "input_type": "number"},
